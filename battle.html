@@ -438,16 +438,21 @@
     }).join('');
   }
 
+  let isProcessingTurn = false; // 二重処理防止フラグ
+
   function checkTurnComplete(room) {
     const players = room.players || {};
     const attacks = room.attacks || {};
     const currentTurn = room.monster?.currentTurn || 1;
-    const activePlayers = Object.entries(players).filter(([,p]) => !p.disconnected);
+
+    // 全プレイヤー（disconnectedも含む）を対象に
+    const allPlayers = Object.entries(players);
+    const activePlayers = allPlayers.filter(([,p]) => !p.disconnected);
     const attackedThisTurn = Object.values(attacks).filter(a => a.turn === currentTurn);
     const attackedIds = attackedThisTurn.map(a => a.playerId);
 
-    // 離脱者で未行動のプレイヤーを自動スキップ
-    activePlayers.forEach(([id, p]) => {
+    // 離脱者で未行動のプレイヤーを自動スキップ（1回だけ）
+    allPlayers.forEach(([id, p]) => {
       if (p.disconnected && !attackedIds.includes(id)) {
         push(ref(db, `rooms/${roomId}/attacks`), {
           playerId: id,
@@ -462,13 +467,20 @@
       }
     });
 
-    if (activePlayers.length > 0 && attackedThisTurn.length >= activePlayers.length) {
+    // アクティブプレイヤー全員が行動済みか確認
+    const activePlayerIds = activePlayers.map(([id]) => id);
+    const activeActed = attackedThisTurn.filter(a => activePlayerIds.includes(a.playerId));
+
+    if (activePlayers.length > 0 && activeActed.length >= activePlayers.length) {
+      if (isProcessingTurn) return; // 二重処理防止
+      isProcessingTurn = true;
+
       if (room.monster.currentHp <= 0) {
         endBattle(true, room);
       } else if (currentTurn > room.monster.limitTurn) {
         endBattle(false, room);
       } else {
-        nextTurn(room);
+        nextTurn(room).finally(() => { isProcessingTurn = false; });
       }
     }
   }

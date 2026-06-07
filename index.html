@@ -120,7 +120,9 @@
       return;
     }
     sessionStorage.setItem('playerName', name);
-    window.location.href = 'lobby.html';
+    sessionStorage.removeItem('playerId'); // 必ず新しいIDを発行させる
+    const roomParam = new URLSearchParams(window.location.search).get('room');
+    window.location.href = roomParam ? `lobby.html?room=${roomParam}` : 'lobby.html';
   }
 </script>
 

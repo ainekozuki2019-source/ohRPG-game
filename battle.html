@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>戦闘 - みんなで大喜利クエスト</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d1a;
+    color: #eee;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .header {
+    text-align: center;
+    padding: 8px 0 16px;
+    border-bottom: 1px solid #333;
+    margin-bottom: 16px;
+  }
+  .title { font-size: 16px; color: #ffd700; letter-spacing: 2px; }
+  .main { max-width: 600px; margin: 0 auto; }
+  .monster-area {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .monster-name { font-size: 22px; color: #ff6666; margin-bottom: 8px; }
+  .monster-img-wrap {
+    position: relative;
+    display: inline-block;
+    margin: 8px 0;
+  }
+  .monster-img {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    border: 1px solid #333;
+    background: #111;
+    border-radius: 4px;
+  }
+  .monster-img.shake { animation: shake 0.4s ease; }
+  .damage-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: bold;
+    color: #ff4444;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+    opacity: 0;
+    white-space: nowrap;
+    max-width: 200px;
+    text-align: center;
+  }
+  .damage-overlay.show { animation: damageAnim 1.2s ease forwards; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  @keyframes damageAnim {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -80%) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -120%) scale(1); }
+  }
+  .hp-info { font-size: 14px; color: #aaa; margin-top: 8px; }
+  .hp-bar-bg {
+    height: 12px;
+    background: #333;
+    border-radius: 6px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .hp-bar {
+    height: 100%;
+    background: #44ff44;
+    border-radius: 6px;
+    transition: width 0.5s, background 0.5s;
+  }
+  .turn-info { font-size: 12px; color: #666; margin-top: 8px; }
+  .topic-area {
+    background: #1a1a2e;
+    border: 1px solid #ffd700;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .topic-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .topic-text { font-size: 18px; color: #ffd700; }
+  .party-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .party-member {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .party-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    color: #fff;
+    border: 2px solid #555;
+    transition: border-color 0.3s;
+  }
+  .party-icon.waiting { border-color: #44ff44; }
+  .party-icon.attacked { border-color: #ff4444; }
+  .party-icon.skipped { border-color: #ff9900; }
+  .party-icon.disconnected { border-color: #555; opacity: 0.5; }
+  .party-name { font-size: 10px; color: #888; }
+  .input-area {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .magic-input {
+    width: 100%;
+    padding: 10px;
+    background: #111;
+    border: 1px solid #444;
+    color: #eee;
+    font-size: 16px;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border-radius: 4px;
+    outline: none;
+    margin-bottom: 8px;
+  }
+  .magic-input:focus { border-color: #ffd700; }
+  .magic-input:disabled { opacity: 0.5; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-attack {
+    flex: 1;
+    padding: 12px;
+    background: #ffd700;
+    color: #0d0d1a;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  .btn-attack:hover { background: #ffe84d; }
+  .btn-attack:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .btn-skip {
+    padding: 12px 16px;
+    background: #333;
+    color: #aaa;
+    font-size: 14px;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-skip:hover { background: #444; }
+  .btn-skip:disabled { opacity: 0.5; cursor: not-allowed; }
+  .log-area {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 12px;
+    height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .log-entry { font-size: 13px; padding: 3px 0; border-bottom: 1px solid #1a1a2e; color: #ccc; }
+  .log-entry.system { color: #888; font-style: italic; }
+  .log-entry.damage { color: #ff9999; }
+  .log-entry.big-damage { color: #ff4444; font-weight: bold; }
+  .result-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .result-overlay.show { display: flex; }
+  .result-box {
+    background: #1a1a2e;
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .result-title {
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 16px;
+    letter-spacing: 3px;
+  }
+  .result-title.win { color: #ffd700; }
+  .result-title.lose { color: #ff4444; }
+  .result-info { font-size: 13px; color: #888; text-align: center; margin-bottom: 16px; }
+  .ranking-title { font-size: 14px; color: #ffd700; margin-bottom: 8px; border-left: 3px solid #ffd700; padding-left: 8px; }
+  .ranking-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+    font-size: 13px;
+  }
+  .ranking-item-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .rank-num { color: #ffd700; min-width: 28px; }
+  .rank-name { color: #aaa; min-width: 80px; }
+  .rank-answer { flex: 1; color: #eee; }
+  .rank-dmg { color: #ff6666; min-width: 70px; text-align: right; }
+  .rank-question { font-size: 11px; color: #666; padding-left: 28px; }
+  .btn-lobby {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    background: #ffd700;
+    color: #0d0d1a;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 2px;
+  }
+  .btn-lobby:hover { background: #ffe84d; }
+
+  /* ===== フェイクゲージ演出 ===== */
+  .casting-area {
+    display: none;
+    margin-bottom: 8px;
+  }
+  .casting-area.show { display: block; }
+  .casting-label {
+    font-size: 13px;
+    color: #ffd700;
+    margin-bottom: 6px;
+    text-align: center;
+    letter-spacing: 1px;
+    animation: blink 0.8s ease infinite;
+  }
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .fake-gauge-bg {
+    height: 14px;
+    background: #333;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .fake-gauge-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #e94560, #ffd700);
+    border-radius: 7px;
+    transition: width 0.3s ease;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">⚔️ みんなで大喜利クエスト ⚔️</div>
+</div>
+
+<div class="main">
+  <div class="monster-area">
+    <div class="monster-name" id="monsterName">---</div>
+    <div class="monster-img-wrap">
+      <img class="monster-img" id="monsterImg" src="" alt="魔物">
+      <div class="damage-overlay" id="damageOverlay"></div>
+    </div>
+    <div class="hp-info" id="hpInfo">HP: --- / ---</div>
+    <div class="hp-bar-bg"><div class="hp-bar" id="hpBar" style="width:100%"></div></div>
+    <div class="turn-info" id="turnInfo">ターン 1</div>
+  </div>
+
+  <div class="topic-area">
+    <div class="topic-label">この魔物の弱点は...</div>
+    <div class="topic-text" id="topicText">---</div>
+  </div>
+
+  <div class="party-area" id="partyArea"></div>
+
+  <div class="input-area">
+    <input type="text" class="magic-input" id="magicInput" placeholder="魔法の言葉を入力してください" maxlength="30">
+    <div class="casting-area" id="castingArea">
+      <div class="casting-label" id="castingLabel">⚡ 攻撃魔法発動中...</div>
+      <div class="fake-gauge-bg">
+        <div class="fake-gauge-bar" id="fakeGaugeBar"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-attack" id="attackBtn" onclick="attack()">⚡ 魔法を発動！</button>
+      <button class="btn-skip" id="skipBtn" onclick="skipTurn()">スキップ</button>
+    </div>
+  </div>
+
+  <div class="log-area" id="logArea"></div>
+</div>
+
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box">
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-info" id="resultInfo"></div>
+    <div class="ranking-title">⚔️ ダメージランキング</div>
+    <div id="rankingList"></div>
+    <button class="btn-lobby" onclick="goToLobby()">ロビーに戻る</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKTPpQhx5kK0r-sMyeP8lbks8OLGtWoc0",
+    authDomain: "ohrpg-55ca6.firebaseapp.com",
+    databaseURL: "https://ohrpg-55ca6-default-rtdb.firebaseio.com",
+    projectId: "ohrpg-55ca6",
+    storageBucket: "ohrpg-55ca6.firebasestorage.app",
+    messagingSenderId: "867380390305",
+    appId: "1:867380390305:web:ae5c124fdbeda9a43483e0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const PLAYER_COLORS = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#e67e22','#1abc9c','#e91e63','#795548','#212121'];
+  const GEMINI_API_KEY = 'AIzaSyD8u2v9CEFpLYAXOj165Jh5F026EDVIuHI';
+
+  const roomId = new URLSearchParams(window.location.search).get('room') || sessionStorage.getItem('roomId');
+  const myPlayerId = sessionStorage.getItem('playerId');
+  const playerName = sessionStorage.getItem('playerName');
+
+  if (!roomId || !myPlayerId) { window.location.href = 'index.html'; }
+
+  let hasActed = false;
+  let currentRoom = null;
+
+  onValue(ref(db, `rooms/${roomId}`), (snap) => {
+    const room = snap.val();
+    if (!room) return;
+    currentRoom = room;
+
+    if (room.status === 'lobby') {
+      window.location.href = `lobby.html?room=${roomId}`;
+      return;
+    }
+    if (room.status === 'result') {
+      showResult(room);
+      return;
+    }
+
+    renderMonster(room.monster);
+    renderTopic(room.currentQuestion);
+    renderParty(room.players || {});
+    renderLog(room.attacks || {});
+    checkTurnComplete(room);
+  });
+
+  function renderMonster(monster) {
+    if (!monster) return;
+    document.getElementById('monsterName').textContent = monster.name;
+    document.getElementById('monsterImg').src = monster.imgUrl;
+    document.getElementById('hpInfo').textContent = `HP: ${Math.max(0, monster.currentHp)} / ${monster.maxHp}`;
+    const pct = Math.max(0, (monster.currentHp / monster.maxHp) * 100);
+    const bar = document.getElementById('hpBar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct > 50 ? '#44ff44' : pct > 25 ? '#ffaa00' : '#ff4444';
+    document.getElementById('turnInfo').textContent = `ターン ${monster.currentTurn} / ${monster.limitTurn}`;
+  }
+
+  function renderTopic(topic) {
+    document.getElementById('topicText').textContent = topic ? `「${topic}」` : '---';
+  }
+
+  function renderParty(players) {
+    const entries = Object.entries(players).sort((a,b) => a[1].joinedAt - b[1].joinedAt);
+    const attacks = currentRoom?.attacks || {};
+    const currentTurn = currentRoom?.monster?.currentTurn || 1;
+    const attackedThisTurn = Object.values(attacks).filter(a => a.turn === currentTurn);
+    const attackedIds = attackedThisTurn.map(a => a.playerId);
+    const skippedIds = attackedThisTurn.filter(a => a.skipped).map(a => a.playerId);
+
+    document.getElementById('partyArea').innerHTML = entries.map(([id, p], i) => {
+      let status = 'waiting';
+      if (p.disconnected) status = 'disconnected';
+      else if (skippedIds.includes(id)) status = 'skipped';
+      else if (attackedIds.includes(id)) status = 'attacked';
+      return `
+        <div class="party-member">
+          <div class="party-icon ${status}" style="background:${PLAYER_COLORS[i % 10]}">${p.name.slice(0,2)}</div>
+          <div class="party-name">${p.name.slice(0,4)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderLog(attacks) {
+    const entries = Object.values(attacks).sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+    document.getElementById('logArea').innerHTML = entries.map(a => {
+      if (a.system) return `<div class="log-entry system">${a.message}</div>`;
+      const cls = a.damage >= 150 ? 'big-damage' : 'damage';
+      const qLabel = a.question ? `[${a.question}] ` : '';
+      return `<div class="log-entry ${cls}">${qLabel}${a.name}の魔法「${a.answer}」！ ${a.damage}ダメージ！</div>`;
+    }).join('');
+  }
+
+  function checkTurnComplete(room) {
+    const players = room.players || {};
+    const attacks = room.attacks || {};
+    const currentTurn = room.monster?.currentTurn || 1;
+    const activePlayers = Object.entries(players).filter(([,p]) => !p.disconnected);
+    const attackedThisTurn = Object.values(attacks).filter(a => a.turn === currentTurn);
+
+    if (activePlayers.length > 0 && attackedThisTurn.length >= activePlayers.length) {
+      if (room.monster.currentHp <= 0) {
+        endBattle(true, room);
+      } else if (currentTurn > room.monster.limitTurn) {
+        endBattle(false, room);
+      } else {
+        nextTurn(room);
+      }
+    }
+  }
+
+  async function nextTurn(room) {
+    const newTurn = (room.monster?.currentTurn || 1) + 1;
+    const questionsSnap = await get(ref(db, 'master_questions'));
+    const questions = questionsSnap.val();
+    const activeQ = Object.values(questions).filter(q => q.status === 'active');
+    const randomQ = activeQ[Math.floor(Math.random() * activeQ.length)];
+
+    await update(ref(db, `rooms/${roomId}/monster`), { currentTurn: newTurn });
+    await update(ref(db, `rooms/${roomId}`), { currentQuestion: randomQ.text });
+    hasActed = false;
+    document.getElementById('attackBtn').disabled = false;
+    document.getElementById('skipBtn').disabled = false;
+    document.getElementById('magicInput').disabled = false;
+    document.getElementById('magicInput').value = '';
+  }
+
+  async function endBattle(isWin, room) {
+    const attacks = room.attacks || {};
+    const allAttacks = Object.values(attacks).filter(a => !a.system && !a.skipped);
+    allAttacks.sort((a,b) => b.damage - a.damage);
+
+    // 勝利時：次の魔物インデックスを計算
+    let nextMonsterIndex = room.monsterIndex || 0;
+    if (isWin) {
+      // 公開中の魔物リストを取得
+      const monstersSnap = await get(ref(db, 'master_monsters'));
+      const monstersRaw = monstersSnap.val() || {};
+      const activeMonsters = Object.entries(monstersRaw)
+        .filter(([, m]) => m.active !== false)
+        .sort((a, b) => (a[1].order ?? 999) - (b[1].order ?? 999));
+
+      const currentIndex = room.monsterIndex || 0;
+      // 次のインデックス（全クリアならループして0に戻る）
+      nextMonsterIndex = (currentIndex + 1) % activeMonsters.length;
+    }
+
+    await update(ref(db, `rooms/${roomId}`), {
+      status: 'result',
+      monsterIndex: nextMonsterIndex,
+      result: { isWin, ranking: allAttacks }
+    });
+  }
+
+  window.attack = async function() {
+    const answer = document.getElementById('magicInput').value.trim();
+    if (!answer || hasActed) return;
+
+    hasActed = true;
+    document.getElementById('attackBtn').disabled = true;
+    document.getElementById('skipBtn').disabled = true;
+    document.getElementById('magicInput').disabled = true;
+
+    // フェイクゲージ開始
+    const castingArea = document.getElementById('castingArea');
+    const gaugeBar = document.getElementById('fakeGaugeBar');
+    castingArea.classList.add('show');
+    gaugeBar.style.width = '0%';
+
+    // じわじわ90%まで伸ばす（遅くなるほど伸びが鈍くなる）
+    let gaugeValue = 0;
+    const gaugeTimer = setInterval(() => {
+      if (gaugeValue < 90) {
+        // 進むほど伸びが遅くなる（序盤は速く、後半はゆっくり）
+        const remaining = 90 - gaugeValue;
+        gaugeValue += remaining * 0.06 + Math.random() * 1.5;
+        gaugeBar.style.width = Math.min(gaugeValue, 90) + '%';
+      }
+    }, 200);
+
+    const topic = currentRoom?.currentQuestion || '';
+    const damage = await getAIDamage(topic, answer);
+
+    // API結果が返ったらゲージ100%にしてから演出へ
+    clearInterval(gaugeTimer);
+    gaugeBar.style.transition = 'width 0.2s ease';
+    gaugeBar.style.width = '100%';
+    await new Promise(r => setTimeout(r, 250));
+    castingArea.classList.remove('show');
+    gaugeBar.style.width = '0%';
+
+    const newHp = Math.max(0, (currentRoom.monster.currentHp || 0) - damage);
+    const turn = currentRoom.monster?.currentTurn || 1;
+
+    await push(ref(db, `rooms/${roomId}/attacks`), {
+      playerId: myPlayerId,
+      name: playerName,
+      answer,
+      damage,
+      question: topic,
+      turn,
+      timestamp: Date.now(),
+      skipped: false
+    });
+
+    await update(ref(db, `rooms/${roomId}/monster`), { currentHp: newHp });
+    showDamageEffect(answer, damage);
+  };
+
+  window.skipTurn = async function() {
+    if (hasActed) return;
+    hasActed = true;
+    document.getElementById('attackBtn').disabled = true;
+    document.getElementById('skipBtn').disabled = true;
+    document.getElementById('magicInput').disabled = true;
+
+    const turn = currentRoom.monster?.currentTurn || 1;
+    const topic = currentRoom?.currentQuestion || '';
+    await push(ref(db, `rooms/${roomId}/attacks`), {
+      playerId: myPlayerId,
+      name: playerName,
+      answer: '（スキップ）',
+      damage: 0,
+      question: topic,
+      turn,
+      timestamp: Date.now(),
+      skipped: true
+    });
+  };
+
+  async function getAIDamage(topic, answer) {
+    const prompt = `あなたは大喜利RPGの採点AIです。
+お題のワードは「${topic}」です。
+プレイヤーの回答は「${answer}」です。
+
+【採点ルール】
+・回答がお題のワードをそのまま連想させる普通の答えは30〜80点
+・回答がお題のワードを独自の視点や発想で表現していて面白い場合は80〜150点
+・回答がお題のワードを超えた天才的な発想や笑いがある場合は150〜200点
+・回答がお題のワードと関係ない、または対義語・反対の意味の場合は1〜30点
+
+必ずJSON形式のみで返してください。余分な文字は一切含めないでください。
+{"damage": 数値, "comment": "一言コメント（日本語20文字以内）"}`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7 }
+          })
+        }
+      );
+      const data = await res.json();
+      const text = data.candidates[0].content.parts[0].text;
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      return parsed.damage;
+    } catch(e) {
+      return Math.floor(Math.random() * 50) + 10;
+    }
+  }
+
+  function showDamageEffect(answer, damage) {
+    const img = document.getElementById('monsterImg');
+    const overlay = document.getElementById('damageOverlay');
+    overlay.textContent = `「${answer}」 ${damage}ダメージ！`;
+    img.classList.remove('shake');
+    overlay.classList.remove('show');
+    void img.offsetWidth;
+    img.classList.add('shake');
+    overlay.classList.add('show');
+    setTimeout(() => {
+      img.classList.remove('shake');
+      overlay.classList.remove('show');
+    }, 1200);
+  }
+
+  function showResult(room) {
+    const result = room.result;
+    if (!result) return;
+    const overlay = document.getElementById('resultOverlay');
+    overlay.classList.add('show');
+    const titleEl = document.getElementById('resultTitle');
+    if (result.isWin) {
+      titleEl.textContent = '🎉 勝利！';
+      titleEl.className = 'result-title win';
+    } else {
+      titleEl.textContent = '💀 ゲームオーバー';
+      titleEl.className = 'result-title lose';
+    }
+    document.getElementById('resultInfo').textContent = `${room.monster?.name}を討伐！`;
+
+    const ranking = result.ranking || [];
+    document.getElementById('rankingList').innerHTML = ranking.map((r, i) => `
+      <div class="ranking-item">
+        <div class="ranking-item-row1">
+          <span class="rank-num">${i+1}位</span>
+          <span class="rank-name">${r.name}</span>
+          <span class="rank-answer">「${r.answer}」</span>
+          <span class="rank-dmg">${r.damage}ダメージ</span>
+        </div>
+        <div class="rank-question">お題：${r.question || '---'}</div>
+      </div>
+    `).join('');
+  }
+
+  window.goToLobby = function() {
+    window.location.href = `lobby.html?room=${roomId}`;
+  };
+</script>
+
+</body>
+</html>

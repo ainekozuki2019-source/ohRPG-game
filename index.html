@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>みんなで大喜利クエスト</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d1a;
+    color: #eee;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .container {
+    text-align: center;
+    padding: 40px 20px;
+    max-width: 480px;
+    width: 100%;
+  }
+  .title {
+    font-size: 28px;
+    color: #ffd700;
+    text-shadow: 2px 2px 0 #aa8800;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 48px;
+    letter-spacing: 1px;
+  }
+  .input-area {
+    margin-bottom: 32px;
+  }
+  .input-label {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .name-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #1a1a2e;
+    border: 2px solid #444;
+    color: #eee;
+    font-size: 18px;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    text-align: center;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .name-input:focus {
+    border-color: #ffd700;
+  }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    background: #ffd700;
+    color: #0d0d1a;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn:hover { background: #ffe84d; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .decoration {
+    font-size: 40px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="decoration">⚔️🧙✨</div>
+  <h1 class="title">みんなで大喜利クエスト</h1>
+  <p class="subtitle">～ 言葉の魔法で魔物を倒せ ～</p>
+
+  <div class="input-area">
+    <label class="input-label">あなたの名前を入力してください</label>
+    <input
+      type="text"
+      id="playerName"
+      class="name-input"
+      placeholder="名前を入力"
+      maxlength="10"
+    >
+  </div>
+
+  <button class="btn" id="startBtn" onclick="goToLobby()">ゲームをはじめる！</button>
+</div>
+
+<script>
+  const nameInput = document.getElementById('playerName');
+  const startBtn = document.getElementById('startBtn');
+
+  nameInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') goToLobby();
+  });
+
+  function goToLobby() {
+    const name = nameInput.value.trim();
+    if (!name) {
+      nameInput.focus();
+      nameInput.style.borderColor = '#ff4444';
+      setTimeout(() => nameInput.style.borderColor = '#444', 1000);
+      return;
+    }
+    sessionStorage.setItem('playerName', name);
+    window.location.href = 'lobby.html';
+  }
+</script>
+
+</body>
+</html>

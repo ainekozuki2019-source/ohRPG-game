@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ロビー - みんなで大喜利クエスト</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d1a;
+    color: #eee;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .header {
+    text-align: center;
+    padding: 16px 0 24px;
+    border-bottom: 1px solid #333;
+    margin-bottom: 24px;
+  }
+  .title { font-size: 20px; color: #ffd700; letter-spacing: 2px; }
+  .room-id { font-size: 12px; color: #666; margin-top: 4px; }
+  .main { max-width: 600px; margin: 0 auto; }
+  .section { margin-bottom: 24px; }
+  .section-title {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    border-left: 3px solid #ffd700;
+    padding-left: 8px;
+  }
+  .monster-card {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .monster-img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border: 1px solid #333;
+    background: #111;
+    border-radius: 4px;
+  }
+  .monster-info { flex: 1; }
+  .monster-name { font-size: 20px; color: #ff6666; margin-bottom: 8px; }
+  .monster-hp { font-size: 13px; color: #aaa; }
+  .hp-bar-bg { height: 8px; background: #333; border-radius: 4px; margin-top: 6px; }
+  .hp-bar { height: 100%; background: #44ff44; border-radius: 4px; }
+  .invite-box {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 16px;
+  }
+  .url-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .url-text {
+    flex: 1;
+    padding: 8px;
+    background: #111;
+    border: 1px solid #444;
+    color: #aaa;
+    font-size: 12px;
+    border-radius: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .btn-small {
+    padding: 8px 12px;
+    background: #333;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    white-space: nowrap;
+  }
+  .btn-small:hover { background: #444; }
+  .players-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 6px 12px;
+  }
+  .player-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .player-name { font-size: 14px; }
+  .host-badge { font-size: 10px; color: #ffd700; margin-left: 4px; }
+  .chat-box {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 12px;
+  }
+  .chat-message { font-size: 14px; color: #ffd700; margin-bottom: 8px; min-height: 20px; }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input {
+    flex: 1;
+    padding: 8px;
+    background: #111;
+    border: 1px solid #444;
+    color: #eee;
+    font-size: 14px;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border-radius: 4px;
+    outline: none;
+  }
+  .chat-input:focus { border-color: #ffd700; }
+  .btn-start {
+    width: 100%;
+    padding: 16px;
+    background: #ffd700;
+    color: #0d0d1a;
+    font-size: 20px;
+    font-weight: bold;
+    font-family: 'MS Gothic', 'Courier New', monospace;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    margin-top: 8px;
+  }
+  .btn-start:hover { background: #ffe84d; }
+  .loading { text-align: center; color: #666; padding: 40px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">⚔️ みんなで大喜利クエスト</div>
+  <div class="room-id" id="roomIdDisplay"></div>
+</div>
+
+<div class="main">
+  <div class="section">
+    <div class="section-title">次の討伐対象</div>
+    <div class="monster-card" id="monsterCard">
+      <div class="loading">魔物情報を読み込み中...</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">仲間を招待する</div>
+    <div class="invite-box">
+      <div class="url-row">
+        <div class="url-text" id="inviteUrl"></div>
+        <button class="btn-small" onclick="copyUrl()">コピー</button>
+      </div>
+      <div id="qrcode" style="margin-top:12px;display:flex;justify-content:center;"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">参加中のメンバー</div>
+    <div class="players-list" id="playersList">
+      <div class="loading">メンバーを読み込み中...</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">チャット</div>
+    <div class="chat-box">
+      <div class="chat-message" id="chatMessage">──</div>
+      <div class="chat-input-row">
+        <input type="text" class="chat-input" id="chatInput" placeholder="一言どうぞ" maxlength="30">
+        <button class="btn-small" onclick="sendChat()">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="startSection"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKTPpQhx5kK0r-sMyeP8lbks8OLGtWoc0",
+    authDomain: "ohrpg-55ca6.firebaseapp.com",
+    databaseURL: "https://ohrpg-55ca6-default-rtdb.firebaseio.com",
+    projectId: "ohrpg-55ca6",
+    storageBucket: "ohrpg-55ca6.firebasestorage.app",
+    messagingSenderId: "867380390305",
+    appId: "1:867380390305:web:ae5c124fdbeda9a43483e0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const PLAYER_COLORS = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#e67e22','#1abc9c','#e91e63','#795548','#212121'];
+
+  const playerName = sessionStorage.getItem('playerName');
+  if (!playerName) { window.location.href = 'index.html'; }
+
+  let roomId = new URLSearchParams(window.location.search).get('room');
+  let myPlayerId = sessionStorage.getItem('playerId');
+  let currentPlayers = {};
+
+  async function init() {
+    if (!roomId) {
+      roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+      window.history.replaceState({}, '', `?room=${roomId}`);
+      await createRoom();
+    } else {
+      await joinOrRejoinRoom();
+    }
+    setupUI();
+    listenRoom();
+  }
+
+  async function getNextMonster(index = 0) {
+    const monstersSnap = await get(ref(db, 'master_monsters'));
+    const monstersRaw = monstersSnap.val() || {};
+    const activeMonsters = Object.entries(monstersRaw)
+      .filter(([, m]) => m.active !== false)
+      .sort((a, b) => (a[1].order ?? 999) - (b[1].order ?? 999));
+    if (activeMonsters.length === 0) return null;
+    // indexが範囲外なら0に戻す（安全対策）
+    const safeIndex = index % activeMonsters.length;
+    return { ...activeMonsters[safeIndex][1], _index: safeIndex };
+  }
+
+  async function getRandomQuestion() {
+    const questionsSnap = await get(ref(db, 'master_questions'));
+    const questions = questionsSnap.val();
+    const activeQ = Object.values(questions).filter(q => q.status === 'active');
+    return activeQ[Math.floor(Math.random() * activeQ.length)];
+  }
+
+  async function createRoom() {
+    const monster = await getNextMonster(0);
+    const randomQ = await getRandomQuestion();
+
+    myPlayerId = push(ref(db, `rooms/${roomId}/players`)).key;
+    sessionStorage.setItem('playerId', myPlayerId);
+    sessionStorage.setItem('roomId', roomId);
+
+    await set(ref(db, `rooms/${roomId}`), {
+      status: 'lobby',
+      hostId: myPlayerId,
+      currentQuestion: randomQ.text,
+      announcement: '',
+      monsterIndex: 0,
+      monster: {
+        name: monster.name,
+        hp: monster.hp,
+        maxHp: monster.hp,
+        currentHp: monster.hp,
+        imgUrl: monster.imgUrl || '',
+        limitTurn: monster.limitTurn,
+        currentTurn: 1
+      },
+      players: {
+        [myPlayerId]: { name: playerName, joinedAt: Date.now(), isHost: true }
+      }
+    });
+  }
+
+  async function joinOrRejoinRoom() {
+    const roomSnap = await get(ref(db, `rooms/${roomId}`));
+    if (!roomSnap.exists()) {
+      alert('ロビーが見つかりません');
+      window.location.href = 'index.html';
+      return;
+    }
+
+    const room = roomSnap.val();
+
+    // 戦闘中なら戦闘画面へ
+    if (room.status === 'battle') {
+      window.location.href = `battle.html?room=${roomId}`;
+      return;
+    }
+
+    const players = room.players || {};
+
+    // 既存プレイヤーIDがあれば復帰
+    if (myPlayerId && players[myPlayerId]) {
+      sessionStorage.setItem('roomId', roomId);
+      return;
+    }
+
+    // 満員チェック
+    const playerCount = Object.keys(players).length;
+    if (playerCount >= 10) {
+      alert('このロビーは満員のため入れません。\n自分でロビーを開いて仲間を招待しますか？');
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // 新規参加
+    myPlayerId = push(ref(db, `rooms/${roomId}/players`)).key;
+    sessionStorage.setItem('playerId', myPlayerId);
+    sessionStorage.setItem('roomId', roomId);
+
+    await set(ref(db, `rooms/${roomId}/players/${myPlayerId}`), {
+      name: playerName, joinedAt: Date.now(), isHost: false
+    });
+  }
+
+  function setupUI() {
+    document.getElementById('roomIdDisplay').textContent = `ルームID: ${roomId}`;
+    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    document.getElementById('inviteUrl').textContent = url;
+
+    // QRコード生成
+    new QRCode(document.getElementById('qrcode'), {
+      text: url,
+      width: 160,
+      height: 160,
+      colorDark: '#ffffff',
+      colorLight: '#1a1a2e',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  function listenRoom() {
+    onValue(ref(db, `rooms/${roomId}`), (snap) => {
+      const room = snap.val();
+      if (!room) return;
+
+      if (room.status === 'battle') {
+        window.location.href = `battle.html?room=${roomId}`;
+        return;
+      }
+
+      renderMonster(room.monsterIndex);
+      renderPlayers(room.players || {}, room.hostId);
+      renderChat(room.announcement);
+      renderStartButton(room.players || {}, room.hostId);
+    });
+  }
+
+  async function renderMonster(monsterIndex) {
+    const monster = await getNextMonster(monsterIndex || 0);
+    if (!monster) return;
+    document.getElementById('monsterCard').innerHTML = `
+      <img class="monster-img" src="${monster.imgUrl || ''}" onerror="this.src=''" alt="${monster.name}">
+      <div class="monster-info">
+        <div class="monster-name">${monster.name}</div>
+        <div class="monster-hp">HP: ${monster.hp} / ${monster.hp}</div>
+        <div class="hp-bar-bg"><div class="hp-bar" style="width:100%"></div></div>
+      </div>
+    `;
+  }
+
+  function renderPlayers(players, hostId) {
+    currentPlayers = players;
+    const list = document.getElementById('playersList');
+    const entries = Object.entries(players).sort((a,b) => a[1].joinedAt - b[1].joinedAt);
+    list.innerHTML = entries.map(([id, p], i) => `
+      <div class="player-chip">
+        <div class="player-icon" style="background:${PLAYER_COLORS[i % 10]}">${p.name.slice(0,2)}</div>
+        <span class="player-name">${p.name}</span>
+        ${id === hostId ? '<span class="host-badge">👑</span>' : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderChat(msg) {
+    document.getElementById('chatMessage').textContent = msg || '──';
+  }
+
+  function renderStartButton(players, hostId) {
+    const section = document.getElementById('startSection');
+    if (myPlayerId === hostId) {
+      section.innerHTML = `<button class="btn-start" onclick="startBattle()">⚔️ 戦闘開始！</button>`;
+    } else {
+      section.innerHTML = `<div style="text-align:center;color:#666;padding:16px;font-size:14px;">ホストが戦闘を開始するのを待っています...</div>`;
+    }
+  }
+
+  window.copyUrl = function() {
+    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました！'));
+  };
+
+  window.sendChat = function() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    const myPlayer = currentPlayers[myPlayerId];
+    const name = myPlayer ? myPlayer.name : playerName;
+    update(ref(db, `rooms/${roomId}`), { announcement: `${name}：${msg}` });
+    input.value = '';
+  };
+
+  document.getElementById('chatInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') window.sendChat();
+  });
+
+  window.startBattle = async function() {
+    // 必ず最新のroomデータをFirebaseから取得する
+    const roomSnap = await get(ref(db, `rooms/${roomId}`));
+    const room = roomSnap.val();
+
+    const monsterIndex = (room.monsterIndex !== undefined) ? room.monsterIndex : 0;
+    console.log('startBattle monsterIndex:', monsterIndex); // デバッグ用
+
+    const monster = await getNextMonster(monsterIndex);
+    if (!monster) { alert('公開中の魔物がいません。Admin画面で魔物を公開してください。'); return; }
+
+    console.log('startBattle monster:', monster.name); // デバッグ用
+
+    const randomQ = await getRandomQuestion();
+
+    await update(ref(db, `rooms/${roomId}`), {
+      status: 'battle',
+      attacks: {},
+      currentQuestion: randomQ.text,
+      monster: {
+        name: monster.name,
+        hp: monster.hp,
+        maxHp: monster.hp,
+        currentHp: monster.hp,
+        imgUrl: monster.imgUrl || '',
+        limitTurn: monster.limitTurn,
+        currentTurn: 1
+      }
+    });
+  };
+
+  init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin管理画面 - みんなで大喜利クエスト</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'MS Gothic', 'ＭＳ ゴシック', monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    color: #ffd700;
+    border-bottom: 2px solid #ffd700;
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+    letter-spacing: 4px;
+  }
+  h2 { font-size: 16px; color: #ffd700; margin-bottom: 16px; letter-spacing: 2px; }
+  .section {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  .add-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .add-form input {
+    background: #0f3460;
+    border: 1px solid #e94560;
+    color: #e0e0e0;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+  }
+  .add-form input::placeholder { color: #888; }
+  .add-form input:focus { outline: none; border-color: #ffd700; }
+  .full-width { grid-column: 1 / -1; }
+  .btn {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.8; }
+  .btn-save   { background: #4caf50; color: #fff; }
+  .btn-delete { background: #888;    color: #fff; }
+  .btn-up   { background: #0f3460; color: #ffd700; border: 1px solid #ffd700; padding: 4px 9px; cursor: pointer; font-size: 13px; border-radius: 4px; }
+  .btn-down { background: #0f3460; color: #ffd700; border: 1px solid #ffd700; padding: 4px 9px; cursor: pointer; font-size: 13px; border-radius: 4px; }
+  .btn-add-monster {
+    background: #e94560; color: #fff;
+    width: 100%; padding: 10px; font-size: 15px;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-weight: bold;
+  }
+  .btn-add-monster:hover { opacity: 0.8; }
+  .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; display: inline-block; }
+  .toggle input { display: none; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: #555; border-radius: 12px; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: ''; position: absolute;
+    width: 18px; height: 18px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: transform 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: #4caf50; }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+  .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+  .toggle-label { font-size: 13px; color: #aaa; }
+  .monster-list { display: flex; flex-direction: column; gap: 12px; }
+  .monster-card {
+    background: #0f3460; border: 1px solid #1a4a8a;
+    border-radius: 6px; padding: 14px;
+  }
+  .monster-card.inactive { opacity: 0.5; border-color: #555; }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .card-order { color: #ffd700; font-size: 18px; font-weight: bold; min-width: 28px; }
+  .card-name-display { flex: 1; font-size: 16px; font-weight: bold; color: #fff; }
+  .card-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #4caf50; color: #fff; }
+  .card-badge.inactive-badge { background: #888; }
+  .card-controls { display: flex; gap: 6px; align-items: center; }
+  .card-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group.full-width { grid-column: 1 / -1; }
+  .field-label { font-size: 11px; color: #aaa; }
+  .field-input {
+    background: #16213e; border: 1px solid #1a4a8a;
+    color: #e0e0e0; padding: 6px 8px; border-radius: 4px;
+    font-family: inherit; font-size: 13px; width: 100%;
+  }
+  .field-input:focus { outline: none; border-color: #ffd700; }
+  .card-footer { display: flex; justify-content: space-between; align-items: center; }
+  #loading-msg { text-align: center; color: #aaa; padding: 20px; font-size: 14px; }
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #4caf50; color: #fff; padding: 10px 24px;
+    border-radius: 20px; font-size: 14px; opacity: 0;
+    transition: opacity 0.3s; pointer-events: none; z-index: 999;
+  }
+  .toast.error { background: #e94560; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>⚔️ Admin管理画面 ⚔️</h1>
+
+<div class="section">
+  <h2>👾 魔物管理</h2>
+  <div class="add-form">
+    <div class="field-group">
+      <span class="field-label">魔物名 *</span>
+      <input type="text" id="new-name" placeholder="例：ゴブリン">
+    </div>
+    <div class="field-group">
+      <span class="field-label">HP *</span>
+      <input type="number" id="new-hp" placeholder="例：100" min="1">
+    </div>
+    <div class="field-group">
+      <span class="field-label">制限ターン数 *</span>
+      <input type="number" id="new-limit" placeholder="例：5" min="1">
+    </div>
+    <div class="field-group">
+      <span class="field-label">画像URL</span>
+      <input type="text" id="new-img" placeholder="https://raw.githubusercontent.com/...">
+    </div>
+    <div class="field-group full-width" style="margin-top:4px;">
+      <button class="btn-add-monster" id="btn-add-monster">＋ 新しい魔物を追加</button>
+    </div>
+  </div>
+  <div id="loading-msg">読み込み中...</div>
+  <div class="monster-list" id="monster-list"></div>
+</div>
+
+<!-- ===== お題管理セクション ===== -->
+<div class="section">
+  <h2>📝 お題管理</h2>
+
+  <!-- 新規追加フォーム -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <input type="text" id="new-question" placeholder="例：甘い、辛い、怖い…"
+      style="flex:1;background:#0f3460;border:1px solid #e94560;color:#e0e0e0;padding:8px 10px;border-radius:4px;font-family:inherit;font-size:14px;">
+    <button class="btn-add-monster" id="btn-add-question" style="width:auto;padding:8px 20px;white-space:nowrap;">
+      ＋ お題を追加
+    </button>
+  </div>
+
+  <div id="question-loading-msg" style="text-align:center;color:#aaa;padding:20px;font-size:14px;">読み込み中...</div>
+  <div id="question-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, remove, push, update }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBKTPpQhx5kK0r-sMyeP8lbks8OLGtWoc0",
+  authDomain: "ohrpg-55ca6.firebaseapp.com",
+  databaseURL: "https://ohrpg-55ca6-default-rtdb.firebaseio.com",
+  projectId: "ohrpg-55ca6",
+  storageBucket: "ohrpg-55ca6.firebasestorage.app",
+  messagingSenderId: "867380390305",
+  appId: "1:867380390305:web:ae5c124fdbeda9a43483e0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ===== トースト通知 =====
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => { t.className = 'toast' + (isError ? ' error' : ''); }, 2500);
+}
+
+// ===== 魔物データ監視 =====
+let monstersData = {};
+
+onValue(ref(db, 'master_monsters'), (snapshot) => {
+  const raw = snapshot.val();
+  console.log('Firebase受信:', raw); // デバッグ用
+  monstersData = raw || {};
+  document.getElementById('loading-msg').style.display = 'none';
+  renderMonsters();
+});
+
+// ===== 魔物一覧レンダリング =====
+function renderMonsters() {
+  const list = document.getElementById('monster-list');
+  list.innerHTML = '';
+
+  const entries = Object.entries(monstersData);
+  if (entries.length === 0) {
+    list.innerHTML = '<div style="color:#888;text-align:center;padding:16px;">魔物がまだいません</div>';
+    return;
+  }
+
+  const sorted = entries.sort((a, b) => (a[1].order ?? 999) - (b[1].order ?? 999));
+
+  sorted.forEach(([key, m], idx) => {
+    const isActive = m.active !== false;
+    const card = document.createElement('div');
+    card.className = 'monster-card' + (isActive ? '' : ' inactive');
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-order">${idx + 1}</span>
+        <span class="card-name-display">${escHtml(m.name || '名無し')}</span>
+        <span class="card-badge ${isActive ? '' : 'inactive-badge'}">${isActive ? '公開中' : '停止中'}</span>
+        <div class="card-controls">
+          <button class="btn-up"   data-key="${key}" data-dir="-1">▲</button>
+          <button class="btn-down" data-key="${key}" data-dir="1">▼</button>
+        </div>
+      </div>
+      <div class="card-fields">
+        <div class="field-group">
+          <span class="field-label">魔物名</span>
+          <input class="field-input" id="name-${key}" type="text" value="${escHtml(m.name || '')}">
+        </div>
+        <div class="field-group">
+          <span class="field-label">HP</span>
+          <input class="field-input" id="hp-${key}" type="number" min="1" value="${m.hp || ''}">
+        </div>
+        <div class="field-group">
+          <span class="field-label">制限ターン数</span>
+          <input class="field-input" id="limit-${key}" type="number" min="1" value="${m.limitTurn || ''}">
+        </div>
+        <div class="field-group full-width">
+          <span class="field-label">画像URL</span>
+          <input class="field-input" id="img-${key}" type="text" value="${escHtml(m.imgUrl || '')}">
+        </div>
+      </div>
+      <div class="card-footer">
+        <label class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" ${isActive ? 'checked' : ''} data-key="${key}" class="toggle-input">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">${isActive ? '公開中' : '停止中'}</span>
+        </label>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-delete" data-key="${key}" data-name="${escHtml(m.name || '')}">削除</button>
+          <button class="btn btn-save"   data-key="${key}">反映</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  // イベント委譲でボタンを処理
+  list.onclick = async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const key = btn.dataset.key;
+
+    if (btn.classList.contains('btn-save'))   await saveMonster(key);
+    if (btn.classList.contains('btn-delete')) await deleteMonster(key, btn.dataset.name);
+    if (btn.classList.contains('btn-up'))     await moveMonster(key, -1);
+    if (btn.classList.contains('btn-down'))   await moveMonster(key,  1);
+  };
+
+  list.onchange = async (e) => {
+    if (e.target.classList.contains('toggle-input')) {
+      await toggleActive(e.target.dataset.key, e.target.checked);
+    }
+  };
+}
+
+// ===== 魔物追加 =====
+document.getElementById('btn-add-monster').addEventListener('click', async () => {
+  const name      = document.getElementById('new-name').value.trim();
+  const hp        = parseInt(document.getElementById('new-hp').value);
+  const limitTurn = parseInt(document.getElementById('new-limit').value);
+  const imgUrl    = document.getElementById('new-img').value.trim();
+
+  if (!name)                   { showToast('魔物名を入力してください', true); return; }
+  if (!hp || hp < 1)           { showToast('HPを正しく入力してください', true); return; }
+  if (!limitTurn || limitTurn < 1) { showToast('制限ターン数を入力してください', true); return; }
+
+  const orders = Object.values(monstersData).map(m => m.order ?? 0);
+  const newOrder = orders.length > 0 ? Math.max(...orders) + 1 : 0;
+
+  try {
+    await push(ref(db, 'master_monsters'), {
+      name, hp, limitTurn,
+      imgUrl: imgUrl || '',
+      order: newOrder,
+      active: true
+    });
+    document.getElementById('new-name').value  = '';
+    document.getElementById('new-hp').value    = '';
+    document.getElementById('new-limit').value = '';
+    document.getElementById('new-img').value   = '';
+    showToast('✅ 魔物を追加しました');
+  } catch(e) {
+    showToast('追加に失敗しました', true);
+    console.error(e);
+  }
+});
+
+// ===== 魔物保存 =====
+async function saveMonster(key) {
+  const name      = document.getElementById(`name-${key}`).value.trim();
+  const hp        = parseInt(document.getElementById(`hp-${key}`).value);
+  const limitTurn = parseInt(document.getElementById(`limit-${key}`).value);
+  const imgUrl    = document.getElementById(`img-${key}`).value.trim();
+
+  if (!name)                   { showToast('魔物名を入力してください', true); return; }
+  if (!hp || hp < 1)           { showToast('HPを正しく入力してください', true); return; }
+  if (!limitTurn || limitTurn < 1) { showToast('制限ターン数を入力してください', true); return; }
+
+  try {
+    await update(ref(db, `master_monsters/${key}`), { name, hp, limitTurn, imgUrl });
+    showToast(`✅ ${name} を更新しました`);
+  } catch(e) {
+    showToast('更新に失敗しました', true);
+    console.error(e);
+  }
+}
+
+// ===== 魔物削除 =====
+async function deleteMonster(key, name) {
+  if (!confirm(`「${name}」を削除してよいですか？\nこの操作は元に戻せません。`)) return;
+  try {
+    await remove(ref(db, `master_monsters/${key}`));
+    showToast(`🗑️ ${name} を削除しました`);
+  } catch(e) {
+    showToast('削除に失敗しました', true);
+    console.error(e);
+  }
+}
+
+// ===== 公開／停止トグル =====
+async function toggleActive(key, isActive) {
+  try {
+    await update(ref(db, `master_monsters/${key}`), { active: isActive });
+    showToast(isActive ? '✅ 公開しました' : '⏸ 停止しました');
+  } catch(e) {
+    showToast('変更に失敗しました', true);
+    console.error(e);
+  }
+}
+
+// ===== 並び順変更 =====
+async function moveMonster(key, direction) {
+  // まず全魔物のorderを0,1,2...と整数で振り直してから入れ替える
+  const sorted = Object.entries(monstersData).sort((a, b) => (a[1].order ?? 999) - (b[1].order ?? 999));
+  const idx = sorted.findIndex(([k]) => k === key);
+  const swapIdx = idx + direction;
+  if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+  // 全魔物に連番orderを付与した更新オブジェクトを作る
+  const updates = {};
+  sorted.forEach(([k], i) => {
+    updates[`${k}/order`] = i;
+  });
+  // 対象の2つだけ入れ替える
+  updates[`${sorted[idx][0]}/order`]    = swapIdx;
+  updates[`${sorted[swapIdx][0]}/order`] = idx;
+
+  try {
+    await update(ref(db, 'master_monsters'), updates);
+    showToast('並び順を変更しました');
+  } catch(e) {
+    showToast('並び順変更に失敗しました', true);
+    console.error(e);
+  }
+}
+
+// ===== お題データ監視 =====
+onValue(ref(db, 'master_questions'), (snapshot) => {
+  const raw = snapshot.val();
+  const questionsData = raw || {};
+  document.getElementById('question-loading-msg').style.display = 'none';
+  renderQuestions(questionsData);
+});
+
+// ===== お題一覧レンダリング =====
+function renderQuestions(questionsData) {
+  const list = document.getElementById('question-list');
+  list.innerHTML = '';
+
+  const entries = Object.entries(questionsData);
+  if (entries.length === 0) {
+    list.innerHTML = '<div style="color:#888;text-align:center;padding:16px;">お題がまだありません</div>';
+    return;
+  }
+
+  // 新しい順（キー降順）で表示
+  entries.reverse().forEach(([key, q]) => {
+    const isActive = q.status === 'active';
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display:flex;align-items:center;gap:10px;
+      background:#0f3460;border:1px solid #1a4a8a;
+      border-radius:6px;padding:10px 14px;
+      ${isActive ? '' : 'opacity:0.5;border-color:#555;'}
+    `;
+    row.innerHTML = `
+      <span style="flex:1;font-size:14px;color:#fff;">「${escHtml(q.text || '')}」</span>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${isActive ? '#4caf50' : '#888'};color:#fff;">
+        ${isActive ? '公開中' : '停止中'}
+      </span>
+      <label class="toggle">
+        <input type="checkbox" ${isActive ? 'checked' : ''} data-key="${key}" class="q-toggle-input">
+        <span class="toggle-slider"></span>
+      </label>
+      <button class="btn btn-delete q-delete-btn" data-key="${key}" data-text="${escHtml(q.text || '')}">削除</button>
+    `;
+    list.appendChild(row);
+  });
+
+  // イベント委譲
+  list.onclick = async (e) => {
+    const btn = e.target.closest('.q-delete-btn');
+    if (!btn) return;
+    const key  = btn.dataset.key;
+    const text = btn.dataset.text;
+    if (!confirm(`「${text}」を削除してよいですか？`)) return;
+    try {
+      await remove(ref(db, `master_questions/${key}`));
+      showToast(`🗑️ 「${text}」を削除しました`);
+    } catch(e) {
+      showToast('削除に失敗しました', true);
+      console.error(e);
+    }
+  };
+
+  list.onchange = async (e) => {
+    if (!e.target.classList.contains('q-toggle-input')) return;
+    const key      = e.target.dataset.key;
+    const isActive = e.target.checked;
+    try {
+      await update(ref(db, `master_questions/${key}`), { status: isActive ? 'active' : 'inactive' });
+      showToast(isActive ? '✅ 公開しました' : '⏸ 停止しました');
+    } catch(e) {
+      showToast('変更に失敗しました', true);
+      console.error(e);
+    }
+  };
+}
+
+// ===== お題追加 =====
+document.getElementById('btn-add-question').addEventListener('click', async () => {
+  const text = document.getElementById('new-question').value.trim();
+  if (!text) { showToast('お題を入力してください', true); return; }
+  try {
+    await push(ref(db, 'master_questions'), { text, status: 'active' });
+    document.getElementById('new-question').value = '';
+    showToast('✅ お題を追加しました');
+  } catch(e) {
+    showToast('追加に失敗しました', true);
+    console.error(e);
+  }
+});
+
+// ===== HTMLエスケープ =====
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

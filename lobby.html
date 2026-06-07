@@ -298,15 +298,20 @@
 
     const players = room.players || {};
 
-    // 既存プレイヤーIDがあれば復帰
+    // 既存プレイヤーIDがあれば復帰（同じブラウザ・同じセッションの場合）
     if (myPlayerId && players[myPlayerId]) {
       sessionStorage.setItem('roomId', roomId);
       return;
     }
 
+    // 別セッション（シークレット等）からのアクセスは必ず新規参加
+    // myPlayerIdをリセットして新しいIDを発行する
+    myPlayerId = null;
+    sessionStorage.removeItem('playerId');
+
     // 満員チェック
-    const playerCount = Object.keys(players).length;
-    if (playerCount >= 10) {
+    const activePlayers = Object.entries(players).filter(([,p]) => !p.disconnected);
+    if (activePlayers.length >= 10) {
       alert('このロビーは満員のため入れません。\n自分でロビーを開いて仲間を招待しますか？');
       window.location.href = 'index.html';
       return;
@@ -324,12 +329,14 @@
 
   function setupUI() {
     document.getElementById('roomIdDisplay').textContent = `ルームID: ${roomId}`;
-    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
-    document.getElementById('inviteUrl').textContent = url;
+    // ローカルとGitHub Pages両対応の招待URL
+    const basePath = window.location.pathname.replace('lobby.html', '');
+    const inviteUrl = `${window.location.origin}${basePath}index.html?room=${roomId}`;
+    document.getElementById('inviteUrl').textContent = inviteUrl;
 
     // QRコード生成
     new QRCode(document.getElementById('qrcode'), {
-      text: url,
+      text: inviteUrl,
       width: 160,
       height: 160,
       colorDark: '#ffffff',
@@ -395,8 +402,9 @@
   }
 
   window.copyUrl = function() {
-    const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
-    navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました！'));
+    const basePath = window.location.pathname.replace('lobby.html', '');
+    const inviteUrl = `${window.location.origin}${basePath}index.html?room=${roomId}`;
+    navigator.clipboard.writeText(inviteUrl).then(() => alert('URLをコピーしました！'));
   };
 
   window.sendChat = function() {

@@ -338,7 +338,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, get, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, get, onValue, push, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBKTPpQhx5kK0r-sMyeP8lbks8OLGtWoc0",
@@ -364,6 +364,10 @@
 
   let hasActed = false;
   let currentRoom = null;
+
+  // ===== 離脱検知：ページを閉じたら disconnected: true を書く =====
+  const myPlayerRef = ref(db, `rooms/${roomId}/players/${myPlayerId}`);
+  onDisconnect(myPlayerRef).update({ disconnected: true });
 
   onValue(ref(db, `rooms/${roomId}`), (snap) => {
     const room = snap.val();
@@ -440,6 +444,23 @@
     const currentTurn = room.monster?.currentTurn || 1;
     const activePlayers = Object.entries(players).filter(([,p]) => !p.disconnected);
     const attackedThisTurn = Object.values(attacks).filter(a => a.turn === currentTurn);
+    const attackedIds = attackedThisTurn.map(a => a.playerId);
+
+    // 離脱者で未行動のプレイヤーを自動スキップ
+    activePlayers.forEach(([id, p]) => {
+      if (p.disconnected && !attackedIds.includes(id)) {
+        push(ref(db, `rooms/${roomId}/attacks`), {
+          playerId: id,
+          name: p.name,
+          answer: '（離脱）',
+          damage: 0,
+          question: room.currentQuestion || '',
+          turn: currentTurn,
+          timestamp: Date.now(),
+          skipped: true
+        });
+      }
+    });
 
     if (activePlayers.length > 0 && attackedThisTurn.length >= activePlayers.length) {
       if (room.monster.currentHp <= 0) {

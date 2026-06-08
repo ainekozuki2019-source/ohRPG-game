@@ -114,7 +114,16 @@
     border-radius: 4px;
     padding: 12px;
   }
-  .chat-message { font-size: 14px; color: #ffd700; margin-bottom: 8px; min-height: 20px; }
+  .chat-log {
+    font-size: 13px;
+    min-height: 40px;
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .chat-log-entry { color: #ffd700; }
   .chat-input-row { display: flex; gap: 8px; }
   .chat-input {
     flex: 1;
@@ -183,10 +192,10 @@
   <div class="section">
     <div class="section-title">チャット</div>
     <div class="chat-box">
-      <div class="chat-message" id="chatMessage">──</div>
-      <div class="chat-input-row">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-input-row" style="margin-top:8px;">
         <input type="text" class="chat-input" id="chatInput" placeholder="一言どうぞ" maxlength="30">
-        <button class="btn-small" onclick="sendChat()">送信</button>
+        <button class="btn-small" id="btn-send-chat">送信</button>
       </div>
     </div>
   </div>
@@ -196,7 +205,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, push, update, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBKTPpQhx5kK0r-sMyeP8lbks8OLGtWoc0",
@@ -230,6 +239,10 @@
     }
     setupUI();
     listenRoom();
+
+    // 離脱時に disconnected フラグを立てる
+    const myPlayerRef = ref(db, `rooms/${roomId}/players/${myPlayerId}`);
+    onDisconnect(myPlayerRef).update({ disconnected: true });
   }
 
   async function getNextMonster(index = 0) {
@@ -346,7 +359,7 @@
   }
 
   function listenRoom() {
-    onValue(ref(db, `rooms/${roomId}`), (snap) => {
+    onValue(ref(db, `rooms/${roomId}`), async (snap) => {
       const room = snap.val();
       if (!room) return;
 
@@ -355,11 +368,54 @@
         return;
       }
 
-      renderMonster(room.monsterIndex);
-      renderPlayers(room.players || {}, room.hostId);
-      renderChat(room.announcement);
-      renderStartButton(room.players || {}, room.hostId);
+      // ホスト離脱チェック・自動引き継ぎ（完了後に最新データで再描画）
+      await checkHostHandover(room);
+
+      // 引き継ぎ後は最新のroomデータを取得して描画
+      const latestSnap = await get(ref(db, `rooms/${roomId}`));
+      const latestRoom = latestSnap.val() || room;
+
+      renderMonster(latestRoom.monsterIndex);
+      renderPlayers(latestRoom.players || {}, latestRoom.hostId);
+      renderChat(latestRoom.chats || {});
+      renderStartButton(latestRoom.players || {}, latestRoom.hostId);
     });
+  }
+
+  // ホスト離脱時の自動引き継ぎ
+  let handoverProcessed = false;
+  async function checkHostHandover(room) {
+    const players = room.players || {};
+    const hostId  = room.hostId;
+    const host    = players[hostId];
+
+    // ホストが離脱していない、または自分がホストなら何もしない
+    if (!host || !host.disconnected) return;
+    if (myPlayerId === hostId) return;
+
+    // 自分が一番古い参加者かどうか確認
+    const activePlayers = Object.entries(players)
+      .filter(([, p]) => !p.disconnected)
+      .sort((a, b) => a[1].joinedAt - b[1].joinedAt);
+
+    if (activePlayers.length === 0) return;
+    const [nextHostId] = activePlayers[0];
+
+    // 自分が次のホストでなければ何もしない
+    if (nextHostId !== myPlayerId) return;
+
+    // 二重実行防止
+    if (handoverProcessed) return;
+    handoverProcessed = true;
+
+    // ホスト権限を引き継ぐ
+    await update(ref(db, `rooms/${roomId}`), {
+      hostId: myPlayerId,
+      announcement: `ホストメンバーが離脱したため、${playerName}がホストになりました。`
+    });
+
+    // フラグをリセット（次のターンに備えて）
+    setTimeout(() => { handoverProcessed = false; }, 3000);
   }
 
   async function renderMonster(monsterIndex) {
@@ -388,8 +444,29 @@
     `).join('');
   }
 
-  function renderChat(msg) {
-    document.getElementById('chatMessage').textContent = msg || '──';
+  function renderChat(chats) {
+    const entries = Object.values(chats)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 10);
+
+    const log = document.getElementById('chatLog');
+    if (entries.length === 0) {
+      log.innerHTML = '<div style="color:#555;">──</div>';
+      return;
+    }
+
+    // 参加順でプレイヤーに色を割り当て
+    const playerEntries = Object.entries(currentPlayers)
+      .sort((a, b) => a[1].joinedAt - b[1].joinedAt);
+    const colorMap = {};
+    playerEntries.forEach(([id, p], i) => {
+      colorMap[p.name] = PLAYER_COLORS[i % PLAYER_COLORS.length];
+    });
+
+    log.innerHTML = entries.map(c => {
+      const color = colorMap[c.name] || '#ffd700';
+      return `<div class="chat-log-entry" style="color:${color};">${c.name}：${c.text}</div>`;
+    }).join('');
   }
 
   function renderStartButton(players, hostId) {
@@ -413,7 +490,11 @@
     if (!msg) return;
     const myPlayer = currentPlayers[myPlayerId];
     const name = myPlayer ? myPlayer.name : playerName;
-    update(ref(db, `rooms/${roomId}`), { announcement: `${name}：${msg}` });
+    push(ref(db, `rooms/${roomId}/chats`), {
+      name,
+      text: msg,
+      timestamp: Date.now()
+    });
     input.value = '';
   };
 
@@ -452,6 +533,8 @@
       }
     });
   };
+
+  document.getElementById('btn-send-chat').addEventListener('click', () => window.sendChat());
 
   init();
 </script>

@@ -38,8 +38,8 @@
     margin: 8px 0;
   }
   .monster-img {
-    width: 140px;
-    height: 140px;
+    width: 210px;
+    height: 210px;
     object-fit: contain;
     border: 1px solid #333;
     background: #111;
@@ -251,6 +251,24 @@
   }
   .btn-lobby:hover { background: #ffe84d; }
 
+  /* ===== ボス登場演出 ===== */
+  @keyframes bossAppear {
+    0%   { opacity: 0; transform: translateX(0); }
+    10%  { opacity: 0.2; transform: translateX(-6px); }
+    20%  { opacity: 0.3; transform: translateX(6px); }
+    30%  { opacity: 0.4; transform: translateX(-6px); }
+    40%  { opacity: 0.55; transform: translateX(6px); }
+    50%  { opacity: 0.65; transform: translateX(-5px); }
+    60%  { opacity: 0.75; transform: translateX(5px); }
+    70%  { opacity: 0.85; transform: translateX(-4px); }
+    80%  { opacity: 0.92; transform: translateX(4px); }
+    90%  { opacity: 0.97; transform: translateX(-2px); }
+    100% { opacity: 1;   transform: translateX(0); }
+  }
+  .monster-img.boss-appear {
+    animation: bossAppear 2.5s ease forwards;
+  }
+
   /* ===== フェイクゲージ演出 ===== */
   .casting-area { display: none; margin-bottom: 8px; }
   .casting-area.show { display: block; }
@@ -351,11 +369,12 @@
 
   if (!roomId || !myPlayerId) { window.location.href = 'index.html'; }
 
-  let hasActed       = false;
-  let currentRoom    = null;
+  let hasActed         = false;
+  let currentRoom      = null;
   let isProcessingTurn = false;
-  let timeoutTimer   = null; // タイムアウト用タイマー
-  let countdownTimer = null; // カウントダウン表示用タイマー
+  let timeoutTimer     = null;
+  let countdownTimer   = null;
+  let bossAnimPlayed   = false; // ボス演出は1回だけ
 
   onValue(ref(db, `rooms/${roomId}`), (snap) => {
     const room = snap.val();
@@ -443,14 +462,31 @@
   function renderMonster(monster) {
     if (!monster) return;
     document.getElementById('monsterName').textContent = monster.name;
-    document.getElementById('monsterImg').src = monster.imgUrl;
     document.getElementById('hpInfo').textContent = `HP: ${Math.max(0, monster.currentHp)} / ${monster.maxHp}`;
     const pct = Math.max(0, (monster.currentHp / monster.maxHp) * 100);
     const bar = document.getElementById('hpBar');
     bar.style.width = pct + '%';
     bar.style.background = pct > 50 ? '#44ff44' : pct > 25 ? '#ffaa00' : '#ff4444';
     document.getElementById('turnInfo').textContent = `ターン ${monster.currentTurn} / ${monster.limitTurn}`;
+
+    const img = document.getElementById('monsterImg');
+
+    // 画像URLが変わったときだけ更新
+    if (img.src !== monster.imgUrl) {
+      img.src = monster.imgUrl;
+    }
+
+    // 登場演出（1回だけ）
+    if (!bossAnimPlayed) {
+      bossAnimPlayed = true;
+      const img = document.getElementById('monsterImg');
+      img.classList.remove('boss-appear');
+      void img.offsetWidth;
+      img.classList.add('boss-appear');
+    }
   }
+
+  
 
   function renderTopic(topic) {
     document.getElementById('topicText').textContent = topic ? `「${topic}」` : '---';

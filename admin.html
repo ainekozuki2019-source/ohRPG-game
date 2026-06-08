@@ -141,7 +141,11 @@
     </div>
     <div class="field-group">
       <span class="field-label">画像URL</span>
-      <input type="text" id="new-img" placeholder="https://raw.githubusercontent.com/...">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="new-img" placeholder="https://raw.githubusercontent.com/..." style="flex:1;">
+        <button class="btn btn-save" onclick="previewImg('new-img', 'new-img-preview')" style="white-space:nowrap;">確認</button>
+      </div>
+      <img id="new-img-preview" src="" alt="" style="display:none;margin-top:8px;width:80px;height:80px;object-fit:contain;background:#111;border:1px solid #333;border-radius:4px;">
     </div>
     <div class="field-group full-width" style="margin-top:4px;">
       <button class="btn-add-monster" id="btn-add-monster">＋ 新しい魔物を追加</button>
@@ -249,7 +253,12 @@ function renderMonsters() {
         </div>
         <div class="field-group full-width">
           <span class="field-label">画像URL</span>
-          <input class="field-input" id="img-${key}" type="text" value="${escHtml(m.imgUrl || '')}">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="field-input" id="img-${key}" type="text" value="${escHtml(m.imgUrl || '')}" style="flex:1;">
+            <button class="btn btn-save" onclick="previewImg('img-${key}', 'preview-${key}')" style="white-space:nowrap;">確認</button>
+          </div>
+          <img id="preview-${key}" src="${escHtml(m.imgUrl || '')}" alt=""
+            style="margin-top:8px;width:80px;height:80px;object-fit:contain;background:#111;border:1px solid #333;border-radius:4px;${m.imgUrl ? '' : 'display:none;'}">
         </div>
       </div>
       <div class="card-footer">
@@ -475,6 +484,16 @@ document.getElementById('btn-add-question').addEventListener('click', async () =
     console.error(e);
   }
 });
+
+// ===== 画像プレビュー =====
+window.previewImg = function(inputId, previewId) {
+  const url = document.getElementById(inputId).value.trim();
+  const img = document.getElementById(previewId);
+  if (!url) { img.style.display = 'none'; return; }
+  img.src = url;
+  img.style.display = 'block';
+  img.onerror = () => { img.style.display = 'none'; showToast('画像を読み込めませんでした', true); };
+};
 
 // ===== HTMLエスケープ =====
 function escHtml(str) {

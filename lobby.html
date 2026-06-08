@@ -165,14 +165,25 @@
 
 <div class="main">
   <div class="section">
-    <div class="section-title">次の討伐対象</div>
+    <div class="section-title">こいつをやっつけてくだちい。</div>
     <div class="monster-card" id="monsterCard">
       <div class="loading">魔物情報を読み込み中...</div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">仲間を招待する</div>
+    <div class="section-title">チャット</div>
+    <div class="chat-box">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-input-row" style="margin-top:8px;">
+        <input type="text" class="chat-input" id="chatInput" placeholder="一言どうぞ" maxlength="30">
+        <button class="btn-small" id="btn-send-chat">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">仲間を招待する　<span style="font-size:11px;color:#666;font-weight:normal;">LINEとかにリンクを貼って呼ぼう</span></div>
     <div class="invite-box">
       <div class="url-row">
         <div class="url-text" id="inviteUrl"></div>
@@ -186,17 +197,6 @@
     <div class="section-title">参加中のメンバー</div>
     <div class="players-list" id="playersList">
       <div class="loading">メンバーを読み込み中...</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">チャット</div>
-    <div class="chat-box">
-      <div class="chat-log" id="chatLog"></div>
-      <div class="chat-input-row" style="margin-top:8px;">
-        <input type="text" class="chat-input" id="chatInput" placeholder="一言どうぞ" maxlength="30">
-        <button class="btn-small" id="btn-send-chat">送信</button>
-      </div>
     </div>
   </div>
 
